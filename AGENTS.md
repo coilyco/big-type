@@ -13,6 +13,9 @@ typing.coilysiren.me.
   step and no dependencies. Keep it that way.
 - The audience is a toddler with a tablet. Anything that can zoom, scroll,
   navigate away, or show a dialog is a bug.
+- `THINGS` in `site/index.html` maps a word to its picture. It holds objects
+  only: animals, food, vehicles, toys, nature. Never people, faces, hands, or
+  gestures, which in practice means no emoji that takes a skin-tone modifier.
 
 ## Project shape
 

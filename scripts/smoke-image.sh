@@ -29,6 +29,7 @@ check() {
 
 check /healthz 'ok'
 check / '<title>big type</title>'
+check / "cat:'"
 check /index.html 'Intl.Segmenter'
 check /no/such/path '<title>big type</title>'
 check /manifest.webmanifest '"display": "fullscreen"'

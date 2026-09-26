@@ -2,10 +2,16 @@
 
 A full-screen typing toy for toddlers, served at typing.coilysiren.me.
 
-Press any key and it pops up huge, white on black, in the middle of the
-screen. Letters show upper-cased. Emoji keep their native colors, and a
-multi-part emoji such as a family or a flag stays whole. On a phone or tablet,
-the first tap opens the on-screen keyboard and keeps it open.
+Type letters and they build up huge, white on black, shrinking to fit as the
+line grows. When the letters spell a thing, the thing pops up above them:
+C-A-T shows a cat, and carrying on to C-A-R-R-O-T swaps a car for a carrot.
+The word list is about 260 objects, animals, foods, vehicles, and bits of
+nature, all drawn with the device's own emoji. Backspace deletes a letter,
+Enter clears the screen, and so does going past 40 letters.
+
+Only letters and spaces reach the screen. Emoji typed from the keyboard, and
+predictive text that swaps a word for an emoji, are dropped. On a phone or
+tablet, the first tap opens the on-screen keyboard and keeps it open.
 
 It installs to a home screen as a full-screen app and keeps working offline.
 
