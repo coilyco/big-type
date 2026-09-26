@@ -1,0 +1,10 @@
+# Skill categories: the generated repo-* pointer skill.
+
+categories:
+  - id: repo
+    kind: prefix
+    prefix: repo-
+    role: repo-pointer
+    enforce_status: false
+
+forbidden_body_strings: []

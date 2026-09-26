@@ -1,0 +1,29 @@
+# Repo gate on every push and pull request. workflow_dispatch is the retry
+# path when a runner kills a run or cannot reach a fetch it needs.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    timeout-minutes: 15
+    runs-on: docker
+    container: forgejo.coilysiren.me/coilyco-flight-deck/agentic-os:release
+    steps:
+      - uses: actions/checkout@v6
+      - run: bash scripts/ci-command.sh bash scripts/test-gate.sh
+      - name: Alert Telegram on main failure
+        if: ${{ failure() && github.ref == 'refs/heads/main' }}
+        continue-on-error: true
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_RED_CHAT_ID }}
+        run: python3 scripts/alert-telegram.py

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>big type</title>
+
+<!-- PWA head tags: installable to a home screen as a full-screen kiosk -->
+<meta name="theme-color" content="#000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="big type">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<style>
+  :root {
+    /* plain white on black; emoji keep their own native colors */
+    --fg:#fff;
+    --bg:#000;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body {
+    height:100%;
+    background:var(--bg);
+    overflow:hidden;
+    touch-action:none;                 /* kill double-tap zoom / pan for little hands */
+    -webkit-user-select:none; user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  #stage {
+    position:fixed; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    /* pad for iOS safe areas so the glyph never hides under a notch */
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  #glyph {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-weight:800;
+    line-height:1;
+    font-size:min(60vw, 78vh);          /* fills the screen, stays whole in either orientation */
+    color:var(--fg);
+    will-change:transform, opacity;
+  }
+
+  /* the pop: scale up with a small overshoot, fade in */
+  @keyframes pop {
+    0%   { transform:scale(0.3); opacity:0; }
+    60%  { transform:scale(1.08); opacity:1; }
+    100% { transform:scale(1); opacity:1; }
+  }
+  #glyph.animate { animation:pop 260ms cubic-bezier(.2,.9,.25,1.2); }
+
+  @media (prefers-reduced-motion: reduce) {
+    #glyph.animate { animation:none; }
+  }
+
+  /* empty-state invitation, gone on first key */
+  #hint {
+    position:fixed; left:0; right:0; bottom:max(6vh, env(safe-area-inset-bottom));
+    text-align:center;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size:clamp(15px, 4.5vw, 22px);
+    color:#8a8f9c;
+    transition:opacity .3s ease;
+    pointer-events:none;
+  }
+  #hint.gone { opacity:0; }
+
+  /* capture field: on-screen but invisible, so the soft keyboard opens and
+     emoji-picker input still flows through. Never visually shown. */
+  #capture {
+    position:fixed; top:0; left:0;
+    width:1px; height:1px;
+    opacity:0; border:0; outline:0; background:transparent;
+    font-size:16px;                     /* >=16px stops iOS zoom-on-focus */
+    caret-color:transparent;
+  }
+</style>
+</head>
+<body>
+  <div id="stage"><div id="glyph"></div></div>
+  <div id="hint">⌨️ tap here to start typing</div>
+  <input id="capture" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="type">
+
+<script>
+(() => {
+  const glyph   = document.getElementById('glyph');
+  const hint    = document.getElementById('hint');
+  const capture = document.getElementById('capture');
+
+  // grapheme segmentation so an emoji (surrogate pair or ZWJ cluster) stays whole
+  const seg = (typeof Intl !== 'undefined' && Intl.Segmenter)
+    ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+    : null;
+
+  function graphemes(str) {
+    if (seg) return [...seg.segment(str)].map(s => s.segment);
+    return Array.from(str); // code-point fallback: keeps most single emoji intact
+  }
+
+  const isLetter = (g) => /\p{L}/u.test(g);
+
+  function show(g) {
+    if (!g) return;
+
+    // letters upper-cased; emoji / digits / symbols left as-is
+    glyph.textContent = isLetter(g) ? g.toUpperCase() : g;
+
+    // restart the pop animation
+    glyph.classList.remove('animate');
+    void glyph.offsetWidth; // reflow so the animation can retrigger
+    glyph.classList.add('animate');
+
+    if (!hint.classList.contains('gone')) hint.classList.add('gone');
+  }
+
+  // --- input capture (covers physical keyboard AND mobile soft keyboard/emoji) ---
+  let prevCount = 0;
+  let composing = false;
+
+  capture.addEventListener('compositionstart', () => { composing = true; });
+  capture.addEventListener('compositionend', () => {
+    composing = false;
+    handleValue();
+  });
+
+  capture.addEventListener('input', () => {
+    if (composing) return;
+    handleValue();
+  });
+
+  function handleValue() {
+    const gs = graphemes(capture.value);
+    if (gs.length > prevCount) {
+      show(gs[gs.length - 1]);             // render the newest grapheme
+    }
+    prevCount = gs.length;
+
+    // keep the buffer from growing without wiping mid-thought
+    if (gs.length > 40) {
+      capture.value = '';
+      prevCount = 0;
+    }
+  }
+
+  // --- keep the keyboard summoned (kiosk behavior) ---
+  function focusCapture() {
+    capture.focus({ preventScroll: true });
+  }
+  document.addEventListener('pointerdown', focusCapture);
+  capture.addEventListener('blur', () => setTimeout(focusCapture, 0));
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) focusCapture();
+  });
+
+  // desktop: focus immediately; mobile needs the first tap (handled above)
+  window.addEventListener('load', () => {
+    setTimeout(() => { try { focusCapture(); } catch (_) {} }, 50);
+  });
+
+  // --- offline support: sw.js keeps the page playable with no network ---
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () =>
+      navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+})();
+</script>
+</body>
+</html>

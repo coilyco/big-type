@@ -1,0 +1,29 @@
+# Builds and publishes the big-type image on every push to main. Rollout stays in
+# coilyco/deploy. workflow_dispatch retries a killed or unfetchable run.
+name: build-publish
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: build-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: deploy
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - name: Publish immutable big-type image
+        run: bash scripts/publish-image.sh
+      - name: Alert Telegram on main failure
+        if: ${{ failure() && github.ref == 'refs/heads/main' }}
+        continue-on-error: true
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_RED_CHAT_ID }}
+        run: python3 scripts/alert-telegram.py
