@@ -24,3 +24,11 @@ are claude.ai's sandbox bridge and were dropped. That copy had SHA-256
 - That change also fixed a bug in the saved version. Digits and symbols took
   `color: inherit`, which resolved to the browser's default black, so they drew
   black on the near-black background.
+
+## After launch
+
+The first deploy showed one letter at a time, because each key replaced the
+last. Kai's design was a spelling toy: the letters build up, and spelling a
+word brings up the thing. That replaced the one-glyph screen on 2026-09-26.
+Keyboard emoji are dropped at the same time, because a phone's predictive text
+had turned "hello" into a waving hand.

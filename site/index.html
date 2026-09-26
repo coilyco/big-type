@@ -36,18 +36,33 @@
 
   #stage {
     position:fixed; inset:0;
-    display:flex; align-items:center; justify-content:center;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
     /* pad for iOS safe areas so the glyph never hides under a notch */
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
 
-  #glyph {
+  /* the typed line: wraps between glyphs, font-size set by fit() so the
+     whole line fills the screen and shrinks as it grows */
+  #line {
+    display:flex; flex-wrap:wrap; justify-content:center; align-content:center;
+    max-width:96%; max-height:100%;    /* the 4% keeps sub-pixel rounding on-screen */
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     font-weight:800;
-    line-height:1;
-    font-size:min(60vw, 78vh);          /* fills the screen, stays whole in either orientation */
+    line-height:1.05;
     color:var(--fg);
-    will-change:transform, opacity;
+  }
+  /* a word never breaks across rows; rows break only between words */
+  #line { column-gap:0.35em; }
+  #line > .word { display:flex; flex-wrap:nowrap; justify-content:center; }
+  #line > .word.mash { flex-wrap:wrap; }  /* longer than any real word: key mashing may wrap */
+  #line > .word > span { display:inline-block; }
+
+  /* the thing the current word spells, above the letters */
+  #pic { line-height:1; }
+  #pic:empty { display:none; }
+  #pic.animate { animation:pop 320ms cubic-bezier(.2,.9,.25,1.2); }
+  @media (prefers-reduced-motion: reduce) {
+    #pic.animate { animation:none; }
   }
 
   /* the pop: scale up with a small overshoot, fade in */
@@ -56,10 +71,10 @@
     60%  { transform:scale(1.08); opacity:1; }
     100% { transform:scale(1); opacity:1; }
   }
-  #glyph.animate { animation:pop 260ms cubic-bezier(.2,.9,.25,1.2); }
+  #line span.animate { animation:pop 260ms cubic-bezier(.2,.9,.25,1.2); }
 
   @media (prefers-reduced-motion: reduce) {
-    #glyph.animate { animation:none; }
+    #line span.animate { animation:none; }
   }
 
   /* empty-state invitation, gone on first key */
@@ -86,15 +101,65 @@
 </style>
 </head>
 <body>
-  <div id="stage"><div id="glyph"></div></div>
-  <div id="hint">⌨️ tap here to start typing</div>
+  <div id="stage"><div id="pic"></div><div id="line"></div></div>
+  <div id="hint">⌨️ tap here, then spell a word like CAT</div>
   <input id="capture" type="text" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="type">
 
 <script>
 (() => {
-  const glyph   = document.getElementById('glyph');
+  const stage   = document.getElementById('stage');
+  const pic     = document.getElementById('pic');
+  const line    = document.getElementById('line');
   const hint    = document.getElementById('hint');
   const capture = document.getElementById('capture');
+
+  // Words that spell a thing. Objects only: no people, faces, hands or gestures.
+  const THINGS = {
+    // animals
+    cat:'🐱', kitty:'🐱', dog:'🐶', puppy:'🐶', cow:'🐮', pig:'🐷', hen:'🐔', chicken:'🐔',
+    rooster:'🐓', chick:'🐤', duck:'🦆', owl:'🦉', bird:'🐦', fish:'🐟', frog:'🐸', bee:'🐝',
+    ant:'🐜', bug:'🐛', ladybug:'🐞', snail:'🐌', worm:'🪱', spider:'🕷️', butterfly:'🦋',
+    bear:'🐻', fox:'🦊', wolf:'🐺', lion:'🦁', tiger:'🐯', zebra:'🦓', horse:'🐴', pony:'🐴',
+    unicorn:'🦄', sheep:'🐑', goat:'🐐', llama:'🦙', camel:'🐫', mouse:'🐭', rat:'🐀',
+    rabbit:'🐰', bunny:'🐰', monkey:'🐵', panda:'🐼', koala:'🐨', sloth:'🦥', otter:'🦦',
+    skunk:'🦨', deer:'🦌', giraffe:'🦒', elephant:'🐘', hippo:'🦛', kangaroo:'🦘', bat:'🦇',
+    snake:'🐍', turtle:'🐢', lizard:'🦎', dino:'🦕', dinosaur:'🦖', trex:'🦖', dragon:'🐉',
+    whale:'🐳', dolphin:'🐬', shark:'🦈', seal:'🦭', octopus:'🐙', crab:'🦀', shrimp:'🦐',
+    penguin:'🐧', parrot:'🦜', swan:'🦢', flamingo:'🦩', peacock:'🦚', turkey:'🦃',
+    // food
+    apple:'🍎', banana:'🍌', grape:'🍇', grapes:'🍇', pear:'🍐', peach:'🍑', cherry:'🍒',
+    lemon:'🍋', orange:'🍊', melon:'🍈', watermelon:'🍉', strawberry:'🍓', berry:'🫐',
+    kiwi:'🥝', pineapple:'🍍', coconut:'🥥', avocado:'🥑', tomato:'🍅', corn:'🌽',
+    carrot:'🥕', potato:'🥔', broccoli:'🥦', mushroom:'🍄', pepper:'🌶️', onion:'🧅',
+    nut:'🥜', egg:'🥚', milk:'🥛', juice:'🧃', bread:'🍞', cheese:'🧀', pizza:'🍕',
+    taco:'🌮', burger:'🍔', fries:'🍟', hotdog:'🌭', sandwich:'🥪', soup:'🍲', rice:'🍚',
+    pancake:'🥞', waffle:'🧇', bagel:'🥯', pretzel:'🥨', cake:'🎂', pie:'🥧', cookie:'🍪',
+    donut:'🍩', candy:'🍬', lollipop:'🍭', honey:'🍯', popcorn:'🍿', icecream:'🍦',
+    // things that go
+    car:'🚗', jeep:'🚙', taxi:'🚕', bus:'🚌', van:'🚐', truck:'🚚', firetruck:'🚒',
+    ambulance:'🚑', police:'🚓', tractor:'🚜', train:'🚂', bike:'🚲', scooter:'🛴',
+    plane:'✈️', helicopter:'🚁', rocket:'🚀', ufo:'🛸', boat:'⛵', ship:'🚢', canoe:'🛶',
+    sled:'🛷', wheel:'🛞',
+    // toys and things
+    ball:'⚽', kite:'🪁', balloon:'🎈', teddy:'🧸', doll:'🪆', yoyo:'🪀', puzzle:'🧩',
+    dice:'🎲', block:'🧱', blocks:'🧱', robot:'🤖', drum:'🥁', guitar:'🎸', piano:'🎹',
+    trumpet:'🎺', violin:'🎻', bell:'🔔', gift:'🎁', present:'🎁', box:'📦', book:'📖',
+    crayon:'🖍️', pencil:'✏️', paint:'🎨', scissors:'✂️', hat:'🎩', cap:'🧢', crown:'👑',
+    sock:'🧦', socks:'🧦', shoe:'👟', shoes:'👟', boot:'👢', shirt:'👕', dress:'👗',
+    coat:'🧥', scarf:'🧣', gloves:'🧤', glasses:'👓', ring:'💍', bag:'👜', backpack:'🎒',
+    umbrella:'☂️', key:'🔑', lock:'🔒', door:'🚪', bed:'🛏️', chair:'🪑', bath:'🛁',
+    soap:'🧼', sponge:'🧽', toothbrush:'🪥', broom:'🧹', bucket:'🪣', ladder:'🪜',
+    basket:'🧺', cup:'☕', bowl:'🥣', spoon:'🥄', fork:'🍴', bottle:'🍼', candle:'🕯️',
+    clock:'⏰', watch:'⌚', phone:'📱', camera:'📷', tv:'📺', radio:'📻', computer:'💻',
+    light:'💡', mail:'✉️', letter:'✉️', map:'🗺️', flag:'🚩', anchor:'⚓', magnet:'🧲',
+    hammer:'🔨', saw:'🪚', axe:'🪓', trophy:'🏆', medal:'🏅', bone:'🦴', shell:'🐚',
+    house:'🏠', home:'🏠', castle:'🏰', tent:'⛺',
+    // nature
+    sun:'☀️', moon:'🌙', star:'⭐', cloud:'☁️', rain:'🌧️', snow:'❄️', snowman:'⛄',
+    rainbow:'🌈', fire:'🔥', water:'💧', ice:'🧊', wave:'🌊', rock:'🪨', mountain:'⛰️',
+    volcano:'🌋', earth:'🌍', world:'🌍', tree:'🌳', palm:'🌴', cactus:'🌵', leaf:'🍃',
+    flower:'🌸', rose:'🌹', tulip:'🌷', sunflower:'🌻', heart:'❤️',
+  };
 
   // grapheme segmentation so an emoji (surrogate pair or ZWJ cluster) stays whole
   const seg = (typeof Intl !== 'undefined' && Intl.Segmenter)
@@ -108,18 +173,56 @@
 
   const isLetter = (g) => /\p{L}/u.test(g);
 
-  function show(g) {
-    if (!g) return;
+  const MAX_GRAPHEMES = 40; // past this the screen clears and starts fresh
+  const LONGEST_WORD = Math.max(...Object.keys(THINGS).map((w) => w.length));
 
-    // letters upper-cased; emoji / digits / symbols left as-is
-    glyph.textContent = isLetter(g) ? g.toUpperCase() : g;
+  // Largest font-size at which the whole line fits the stage, by binary
+  // search: wrapping makes the height a step function of the size.
+  function fit() {
+    const cs = getComputedStyle(stage);
+    const availW = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    let availH = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+    if (pic.textContent) {                 // the thing takes the top half, letters get the rest
+      const size = Math.min(availW * 0.8, availH * 0.5);
+      pic.style.fontSize = size + 'px';
+      availH -= pic.offsetHeight;
+    }
+    const maxH = availH * 0.96;
+    let lo = 8, hi = Math.min(availW * 0.6, availH * 0.78);
+    for (let i = 0; i < 14; i++) {
+      const mid = (lo + hi) / 2;
+      line.style.fontSize = mid + 'px';
+      if (line.scrollWidth <= line.clientWidth && line.scrollHeight <= maxH) lo = mid; else hi = mid;
+    }
+    line.style.fontSize = lo + 'px';
+  }
 
-    // restart the pop animation
-    glyph.classList.remove('animate');
-    void glyph.offsetWidth; // reflow so the animation can retrigger
-    glyph.classList.add('animate');
+  // The word being typed now: the letters after the last space.
+  const currentWord = (gs) => gs.slice(gs.lastIndexOf(' ') + 1).join('').toLowerCase();
 
-    if (!hint.classList.contains('gone')) hint.classList.add('gone');
+  // Render the whole buffer; pop only the newest letter when one was added,
+  // and pop the thing when the current word starts spelling a new one.
+  function render(gs, grew) {
+    const words = gs.join('').split(' ').filter(Boolean);
+    line.replaceChildren(...words.map((w) => {
+      const word = document.createElement('div');
+      word.className = w.length > LONGEST_WORD ? 'word mash' : 'word';
+      word.append(...graphemes(w).map((g) => {
+        const span = document.createElement('span');
+        span.textContent = g.toUpperCase();
+        return span;
+      }));
+      return word;
+    }));
+    const last = line.lastElementChild && line.lastElementChild.lastElementChild;
+    const thing = THINGS[currentWord(gs)] || '';
+    const newThing = thing && thing !== pic.textContent;
+    pic.textContent = thing;
+    pic.classList.remove('animate');
+    fit();
+    if (grew && last && gs[gs.length - 1] !== ' ') last.classList.add('animate');
+    if (newThing) { void pic.offsetWidth; pic.classList.add('animate'); }
+    if (gs.length && !hint.classList.contains('gone')) hint.classList.add('gone');
   }
 
   // --- input capture (covers physical keyboard AND mobile soft keyboard/emoji) ---
@@ -137,19 +240,34 @@
     handleValue();
   });
 
+  // The input's value is the only state: backspace shortens it, typing grows it.
+  // Only letters and spaces are kept, so keyboard emoji and predictive swaps
+  // (the word "hello" becoming a waving hand) never reach the screen.
   function handleValue() {
-    const gs = graphemes(capture.value);
-    if (gs.length > prevCount) {
-      show(gs[gs.length - 1]);             // render the newest grapheme
+    const raw = graphemes(capture.value);
+    let gs = raw.filter((g) => isLetter(g) || g === ' ');
+    if (gs.length !== raw.length) capture.value = gs.join('');
+    let grew = gs.length > prevCount;
+    if (gs.length > MAX_GRAPHEMES) {
+      gs = gs.slice(-1);                   // full screen: start over with the newest key
+      capture.value = gs.join('');
+      grew = true;
     }
+    render(gs, grew);
     prevCount = gs.length;
+  }
 
-    // keep the buffer from growing without wiping mid-thought
-    if (gs.length > 40) {
+  // Enter clears the screen (a text input would otherwise ignore it)
+  capture.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
       capture.value = '';
       prevCount = 0;
+      render([], false);
     }
-  }
+  });
+
+  window.addEventListener('resize', fit);
 
   // --- keep the keyboard summoned (kiosk behavior) ---
   function focusCapture() {
