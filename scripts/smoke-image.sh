@@ -18,8 +18,12 @@ for _ in $(seq 1 20); do
 done
 
 fail=0
+# Read the whole body first: grep -q exits on its first hit, and pipefail then
+# fails the check on wget's SIGPIPE (141) whenever the runner is slow.
 check() {
-  if get "$1" | grep -q "$2"; then
+  local body
+  body="$(get "$1" || true)"
+  if grep -qF -- "$2" <<<"${body}"; then
     echo "ok   $1 contains '$2'"
   else
     echo "FAIL $1 missing '$2'" >&2
@@ -38,7 +42,9 @@ check /icons/icon.svg '<svg'
 # busybox wget exits non-zero on 4xx, so read its headers without pipefail.
 headers() { docker exec "${name}" wget -qS -O /dev/null "http://127.0.0.1:8080$1" 2>&1 || true; }
 check_header() {
-  if headers "$1" | grep -q "$2"; then
+  local head
+  head="$(headers "$1")"
+  if grep -qF -- "$2" <<<"${head}"; then
     echo "ok   $1 header '$2'"
   else
     echo "FAIL $1 header missing '$2'" >&2
