@@ -54,7 +54,6 @@
   /* a word never breaks across rows; rows break only between words */
   #line { column-gap:0.35em; }
   #line > .word { display:flex; flex-wrap:nowrap; justify-content:center; }
-  #line > .word.mash { flex-wrap:wrap; }  /* longer than any real word: key mashing may wrap */
   #line > .word > span { display:inline-block; }
 
   /* the thing the current word spells, above the letters */
@@ -174,7 +173,8 @@
   const isLetter = (g) => /\p{L}/u.test(g);
 
   const MAX_GRAPHEMES = 40; // past this the screen clears and starts fresh
-  const LONGEST_WORD = Math.max(...Object.keys(THINGS).map((w) => w.length));
+  // every start of a listed word: a key that leaves the list is ignored
+  const PREFIXES = new Set(Object.keys(THINGS).flatMap((w) => [...w].map((_, i) => w.slice(0, i + 1))));
 
   // Largest font-size at which the whole line fits the stage, by binary
   // search: wrapping makes the height a step function of the size.
@@ -206,7 +206,7 @@
     const words = gs.join('').split(' ').filter(Boolean);
     line.replaceChildren(...words.map((w) => {
       const word = document.createElement('div');
-      word.className = w.length > LONGEST_WORD ? 'word mash' : 'word';
+      word.className = 'word';
       word.append(...graphemes(w).map((g) => {
         const span = document.createElement('span');
         span.textContent = g.toUpperCase();
@@ -215,7 +215,8 @@
       return word;
     }));
     const last = line.lastElementChild && line.lastElementChild.lastElementChild;
-    const thing = THINGS[currentWord(gs)] || '';
+    // right after a space the finished word keeps its picture until the next word starts
+    const thing = THINGS[currentWord(gs[gs.length - 1] === ' ' ? gs.slice(0, -1) : gs)] || '';
     const newThing = thing && thing !== pic.textContent;
     pic.textContent = thing;
     pic.classList.remove('animate');
@@ -240,19 +241,29 @@
     handleValue();
   });
 
+  // Keep a key only while the word still leads to a thing: a letter must extend
+  // a listed word's start, a space must follow a whole word. Everything else,
+  // keyboard emoji and predictive swaps included, never reaches the screen.
+  function accept(raw) {
+    const out = [];
+    for (const g of raw) {
+      const word = currentWord(out);
+      if (g === ' ') { if (THINGS[word]) out.push(g); }
+      else if (isLetter(g) && PREFIXES.has(word + g.toLowerCase())) out.push(g);
+    }
+    return out;
+  }
+
   // The input's value is the only state: backspace shortens it, typing grows it.
-  // Only letters and spaces are kept, so keyboard emoji and predictive swaps
-  // (the word "hello" becoming a waving hand) never reach the screen.
   function handleValue() {
     const raw = graphemes(capture.value);
-    let gs = raw.filter((g) => isLetter(g) || g === ' ');
-    if (gs.length !== raw.length) capture.value = gs.join('');
+    let gs = accept(raw);
     let grew = gs.length > prevCount;
     if (gs.length > MAX_GRAPHEMES) {
-      gs = gs.slice(-1);                   // full screen: start over with the newest key
-      capture.value = gs.join('');
-      grew = true;
+      gs = accept(raw.slice(-1));          // full screen: start over with the newest key
+      grew = gs.length > 0;
     }
+    if (gs.join('') !== capture.value) capture.value = gs.join('');
     render(gs, grew);
     prevCount = gs.length;
   }
