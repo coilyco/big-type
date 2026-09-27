@@ -32,3 +32,7 @@ last. Kai's design was a spelling toy: the letters build up, and spelling a
 word brings up the thing. That replaced the one-glyph screen on 2026-09-26.
 Keyboard emoji are dropped at the same time, because a phone's predictive text
 had turned "hello" into a waving hand.
+
+Later that night Kai added one more rule: typing stops once no listed word can
+match. A letter that leads nowhere is ignored, and a space counts only after a
+whole word.

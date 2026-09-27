@@ -9,8 +9,10 @@ The word list is about 260 objects, animals, foods, vehicles, and bits of
 nature, all drawn with the device's own emoji. Backspace deletes a letter,
 Enter clears the screen, and so does going past 40 letters.
 
-Only letters and spaces reach the screen. Emoji typed from the keyboard, and
-predictive text that swaps a word for an emoji, are dropped. On a phone or
+Typing stops at a dead end. A letter is kept only while the word could still
+become something on the list, so C-A-R-X keeps CAR and ignores the X. A space
+is kept only after a whole word. Emoji typed from the keyboard, and predictive
+text that swaps a word for an emoji, never reach the screen. On a phone or
 tablet, the first tap opens the on-screen keyboard and keeps it open.
 
 It installs to a home screen as a full-screen app and keeps working offline.
