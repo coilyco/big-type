@@ -52,7 +52,7 @@ worker's own cache.
 
 ## Cross-repo contracts
 
-- Image: `forgejo.coilysiren.me/coilyco/big-type:<full sha>`, pinned by
+- Image: `ghcr.io/coilyco/big-type:<full sha>`, pinned by
   `coilyco/deploy` in `services/big-type/values.env`.
 - `documentation-size` is left out of the hook list until the repo has a
   ratified band in the documentation policy.

@@ -31,7 +31,7 @@ just test    # pre-commit over every file
   worker, and icons. There is no build step.
 - `Dockerfile`, `nginx.conf` - an unprivileged nginx image on port 8080.
 - `scripts/publish-image.sh` - builds, smoke-tests, and pushes
-  `forgejo.coilysiren.me/coilyco/big-type:<full sha>` on every push to main.
+  `ghcr.io/coilyco/big-type:<full sha>` on every push to main.
 
 Rollout, DNS, and TLS live in `coilyco/deploy` under `services/big-type`.
 
