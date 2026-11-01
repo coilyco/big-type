@@ -12,7 +12,7 @@ What `big-type` currently ships.
 - **Installable offline app** - a web manifest for full-screen home-screen
   install, and a network-first service worker so the toy opens with no signal.
 - **Container image** - unprivileged nginx on 8080 with `/healthz`, smoke-tested
-  and then published to the Forgejo registry at the full commit SHA on every
+  and then published to GHCR at the full commit SHA on every
   push to main. Rollout lives in `coilyco/deploy`.
 
 ## See also

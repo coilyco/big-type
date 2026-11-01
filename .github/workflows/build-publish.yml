@@ -1,0 +1,42 @@
+# Builds the big-type image and pushes it to GHCR on every push to main. Rollout is Flux
+# from coilyco/deploy, and no cluster credential here. workflow_dispatch retries a run.
+name: build-publish
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Publish immutable big-type image
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/publish-image.sh
+
+      - name: Alert Sentry on main failure
+        if: ${{ failure() && github.ref == 'refs/heads/main' }}
+        continue-on-error: true
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_CI_DSN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 scripts/alert_sentry.py

@@ -1,0 +1,39 @@
+# Repo gate on every push and pull request. workflow_dispatch is the retry path.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: coilyco/agentic-os/actions/setup-ci@0dc318a369ff34254a7187b5b1b85ff9b6580750
+        with:
+          tools: uv pre-commit trufflehog
+
+      - run: bash scripts/test-gate.sh
+
+      - name: Alert Sentry on main failure
+        if: ${{ failure() && github.ref == 'refs/heads/main' }}
+        continue-on-error: true
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_CI_DSN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 scripts/alert_sentry.py
