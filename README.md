@@ -1,6 +1,10 @@
 # big type
 
-A full-screen typing toy for toddlers, served at typing.coilysiren.me.
+A full-screen typing toy for toddlers. Play it at
+[typing.coilysiren.me](https://typing.coilysiren.me/), on a laptop or on a
+tablet's on-screen keyboard.
+
+![Typing C-A-T shows the word in huge white letters with a cat emoji above it](docs/screenshot.png)
 
 Type letters and they build up huge, white on black, shrinking to fit as the
 line grows. When the letters spell a thing, the thing pops up above them:
@@ -19,10 +23,13 @@ It installs to a home screen as a full-screen app and keeps working offline.
 
 ## Run it
 
+The whole app is static files in `site/`, so any local web server runs it.
+
 ```bash
-just serve   # http://127.0.0.1:18080
-just smoke   # build the image and check what the deploy probes depend on
-just test    # pre-commit over every file
+just serve-plain   # http://127.0.0.1:18080, Python only, no Docker
+just serve         # same port, from the built nginx image
+just smoke         # build the image and check what the deploy probes depend on
+just test          # pre-commit over every file
 ```
 
 ## Layout

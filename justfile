@@ -17,6 +17,10 @@ test *ARGS:
 smoke:
     @docker build -q -t big-type:local . >/dev/null && bash scripts/smoke-image.sh big-type:local
 
+# Serve site/ with Python on http://127.0.0.1:18080 until Ctrl-C, no Docker.
+serve-plain:
+    @python3 -m http.server 18080 --bind 127.0.0.1 --directory site
+
 # Serve the built image on http://127.0.0.1:18080 until Ctrl-C.
 serve:
     @docker build -q -t big-type:local . >/dev/null && docker run --rm -p 18080:8080 big-type:local
